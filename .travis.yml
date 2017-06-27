@@ -1,60 +1,54 @@
 dist: trusty
 env:
   global:
-    - PREFIX=/tmp
-    - GYP_DEFINES="target_arch=arm"
+  - PREFIX=/tmp
+  - GYP_DEFINES="target_arch=arm"
   matrix:
-    - GYP_GENERATOR_OUTPUT=x86_64 GNARGS='is_debug=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_include_tests=false enable_nacl=false rtc_enable_protobuf=false'
-    - GYP_GENERATOR_OUTPUT=arm GNARGS='is_debug=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_include_tests=false enable_nacl=false rtc_enable_protobuf=false is_clang=false target_cpu="arm" treat_warnings_as_errors=false' CROSS=arm-linux-gnueabihf- SYSROOT=${TRAVIS_BUILD_DIR}/../webrtc/src/build/linux/debian_jessie_arm-sysroot
-    - GYP_GENERATOR_OUTPUT=armv6 GNARGS='is_debug=false rtc_include_tests=false enable_nacl=false rtc_enable_protobuf=false is_clang=false target_cpu="arm" arm_version=6 arm_float_abi="hard" arm_use_neon=false treat_warnings_as_errors=false' CROSS=arm-linux-gnueabihf- SYSROOT=${TRAVIS_BUILD_DIR}/../webrtc/src/build/linux/debian_jessie_arm-sysroot CFLAGS_EXTRA="-march=armv6"
+  - GYP_GENERATOR_OUTPUT=x86_64 GNARGS='is_debug=false rtc_use_h264=true ffmpeg_branding="Chrome"
+    rtc_include_tests=false enable_nacl=false rtc_enable_protobuf=false'
+  - GYP_GENERATOR_OUTPUT=arm GNARGS='is_debug=false rtc_use_h264=true ffmpeg_branding="Chrome"
+    rtc_include_tests=false enable_nacl=false rtc_enable_protobuf=false is_clang=false
+    target_cpu="arm" treat_warnings_as_errors=false' CROSS=arm-linux-gnueabihf- SYSROOT=${TRAVIS_BUILD_DIR}/../webrtc/src/build/linux/debian_jessie_arm-sysroot
+  - GYP_GENERATOR_OUTPUT=armv6 GNARGS='is_debug=false rtc_include_tests=false enable_nacl=false
+    rtc_enable_protobuf=false is_clang=false target_cpu="arm" arm_version=6 arm_float_abi="hard"
+    arm_use_neon=false treat_warnings_as_errors=false' CROSS=arm-linux-gnueabihf-
+    SYSROOT=${TRAVIS_BUILD_DIR}/../webrtc/src/build/linux/debian_jessie_arm-sysroot
+    CFLAGS_EXTRA="-march=armv6"
 addons:
   apt:
     packages:
     - git
 before_install:
 - pushd ..
-# get toolchain need to build WebRTC
 - git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
 - export PATH=$PATH:$(pwd)/depot_tools
 - git clone --depth 1 https://github.com/raspberrypi/tools.git rpi_tools
 - export PATH=$PATH:$(pwd)/rpi_tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin
-# get WebRTC
 - mkdir webrtc
 - pushd webrtc
 - fetch --no-history --nohooks webrtc
-# buid WebRTC
 - gclient sync
 - pushd src
 - gn gen ${GYP_GENERATOR_OUTPUT}/out/Release --args="${GNARGS}"
 - ninja -C ${GYP_GENERATOR_OUTPUT}/out/Release
 - popd
 - popd
-#
 - popd
 language: cpp
 compiler:
 - gcc
 script:
-- make PREFIX=${PREFIX} live555 
+- make PREFIX=${PREFIX} live555
 - make PREFIX=${PREFIX} all tgz
 before_deploy:
 - export RELEASE_PKG_FILE=$(ls *.tgz)
-- echo "RELEASE_PKG_FILE=${RELEASE_PKG_FILE}"   
+- echo "RELEASE_PKG_FILE=${RELEASE_PKG_FILE}"
 deploy:
-- provider: heroku
+  provider: releases
   skip_cleanup: true
   api_key:
-    secure: NmTNf38MkoWWQZrRkXyWqCdRRO4Xjv+Kl0TOZPw+qCXva4kc2T0uwSi2o4YNZBUA533NyZvO6IJMQOpx24UkjPhxVv591FBB+HdUevOxD4SEAE8fBibpHVX3sTU0XLp/mx+BpNFdxKrEHHzoyBZBFjesQVVMVczB4AOv/KZerGw=
+    secure: bWf4J81+4N9gdlmB/vWfwzmxjALFikSPClBHdPVqeKFrkFoV3wlbWevDEE4HHl8nOtKvCgoUnEF520w4UiXb/vLbcgkWuWNVsRXiiAR9QbgCiXzrkMoi5I/4nz3rYL7F3aCOkYVfPuatnvw04SJT4P1byopFEhRWhgwgBxp7rK8hWPsFHLhjNsn3EI/LhZHnwMXX7NeJzrBWMTrRKHCk8LDwpV4ET2m+at3GOw/F2MwYVE1la9CSkn3l73PqONPz38elGsjdgUnDmB6Ru+amJFEvLbWag2ZEa9q/7EK+CimPqdqyfDiUeJ079lFd8nlwmPeXDcFmiwGaQ5JPdFWfkEpthuht/q8CB64JHFYyK7JFVd+Qksq+x3dqYqPFxDDtNnGFbc7+y/cRg4mrr+OT0FKeGxKsHdQm3D4jILuWVuX4bnveDs72ScFkQNjp/8ZlKmSMaI+cT/rz6u9s8MBTJbc3dmr8u4n1qzSBaFtDqBuOt0gje3Ov0kSZh5JYXzAF8pjwyRib923jcTNZctcg2iLvxGNYW8fpmrM4NHQnOn77+6OOtLUI8WuBMGjCaDhdhi0wakFi+4in4C5rk5iM867y+mxri+MnHjnGHdsrP1kCk46nMnmEGaDnM91rqfCIVp+yWG6/xaGHRcgtBYqWjM838EKD1453Zj3Sn1V5JqI=
+  file: "${RELEASE_PKG_FILE}"
   on:
-    repo: mpromonet/webrtc-streamer
-    tags: false
-    condition: $GYP_GENERATOR_OUTPUT = x86_64
-- provider: releases
-  skip_cleanup: true
-  api_key:
-    secure: FMXzmhBmuy7Jou3h5lG10b8xl5oqI96aYoUrUHO2rfKqQ4UMKxT3hXcdxOnSsnbI6d8NfXbOPKqmqmD4vTk+EqQjCK9fmsNxAg1UktLIsuOxoWmEWYLK5d3xpIuRmfRQDtPVjcryrE420FCfZS67lyr22+v1pLcvcD61ebGZLCg=
-  file: 
-  - "${RELEASE_PKG_FILE}"
-  on:
-    repo: mpromonet/webrtc-streamer
+    repo: nistath/webrtc-streamer
     tags: true
